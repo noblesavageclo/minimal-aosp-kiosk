@@ -1,75 +1,11 @@
-name: Minimal AOSP Kiosk Build
+# Remove this step completely
+- name: Download minimal AOSP base
+  run: |
+    mkdir aosp-minimal
+    cd aosp-minimal
+    git init
+    git remote add origin https://android.googlesource.com/platform/manifest
+    git fetch --depth 1 android-12.0.0_r1
+    git checkout FETCH_HEAD
+    echo "Downloaded minimal AOSP manifest"
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-11-jdk unzip curl git
-
-      - name: Download minimal AOSP base
-        run: |
-          mkdir aosp-minimal
-          cd aosp-minimal
-          git init
-          git remote add origin https://android.googlesource.com/platform/manifest
-          git fetch --depth 1 android-12.0.0_r1
-          git checkout FETCH_HEAD
-          echo "Downloaded minimal AOSP manifest"
-
-      - name: Create kiosk app
-        run: |
-          mkdir -p kioskapp/src/com/example/kiosk
-          cat > kioskapp/src/com/example/kiosk/MainActivity.java <<'EOF'
-          package com.example.kiosk;
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.view.WindowManager;
-          public class MainActivity extends Activity {
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-              }
-          }
-          EOF
-
-          cat > kioskapp/AndroidManifest.xml <<'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="com.example.kiosk">
-              <application android:label="Kiosk" android:launchMode="singleTask">
-                  <activity android:name=".MainActivity"
-                      android:exported="true"
-                      android:launchMode="singleTask">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.HOME" />
-                          <category android:name="android.intent.category.DEFAULT" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
-
-      - name: Build kiosk APK
-        run: |
-          mkdir build
-          cd kioskapp
-          zip -r ../build/kiosk-app.zip .
-
-      - name: Upload kiosk build
-        uses: actions/upload-artifact@v4
-        with:
-          name: kiosk-app
-          path: build/kiosk-app.zip  
